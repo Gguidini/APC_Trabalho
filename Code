@@ -1,0 +1,418 @@
+/* Trabalho Pratico APC 2016/2
+   por Giovanni M Guidini 16/0122660
+   special thanks to: Mikael Mello and Thiago Veras*/
+   
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <time.h>
+#include <string.h>
+
+/*valor médio da medida de tempo de estadia no restaurante (segundos)*/ 
+#define MEDIA_TEMPO 60
+/* erro da medida de tempo de estadia no restaurante (segundos)*/ 
+#define ERRO_TEMPO 20
+/*define o tempo de intervalo entre as exibições da tela (milissegundos)*/
+#ifdef _WIN32
+	#define ANIMACAO_DELAY 6
+#else
+	#define ANIMACAO_DELAY 80
+#endif
+/* expressão que gera um número aleatório no intervalo [M - E, M + E]*/ 
+#define RAND(M, E) (M + (rand()%(2*E + 1) - E) )
+
+/* faz a função de limpar a tela funcionar tanto do windows quanto no linux */
+#ifdef _WIN32
+    #define CLEAR "cls"
+#else
+    #define CLEAR "clear"
+#endif
+
+char restaurante[17][42];
+long long int tempo_saida[16]; 
+double tip;
+/* primeiro easterEgg. Mostra os ganhos com gorjeta até o momento*/
+void easterEgg(){
+	printf("\nGanhos da noite ate agora: %.2lf$\n\n", tip);
+	printf("Gostaria de gerenciar o restaurante agora?\n");
+}
+/* faz a verificação do input para a continuidade do controle. Nao pede input para permitir mensagens diferentes ao usuario*/
+void getControl(char* c){
+    scanf(" %s", c);
+    getchar();
+    if(strcmp(c, "tip") == 0){
+	easterEgg();
+	getControl(c);
+	return;
+    }
+    while((c[0] != 'n') && (c[0] != 'N') && (c[0] != 's') && (c[0] != 'S')){
+        printf("comando invalido. Informe novamente (s/n)\n");
+        scanf(" %s", c);
+        getchar();
+    }
+}
+/* função que inicializa todas as variáveis inmportantes do programa*/
+void inicio(char* c){
+	/*limpa a tela */
+	system(CLEAR);
+	
+	/* set tip para 0*/
+	tip = 0;
+	/*muda o valor da seed*/
+	srand(time(0));
+	
+	/*abre arquivo matriz.txt e lê a planta do restaurante para a 
+	matriz restaurante */
+	FILE *fp;
+	int i = 0;
+	fp = fopen("MATRIZ.txt", "r+");
+	while(i < 17){
+	    fscanf(fp, "%[^\n]%*c", &restaurante[i][0]);
+		/*garante que o %*c nao pegue o \0 da linha*/
+		restaurante[i][41] = '\0';
+		i++; 
+		
+	}
+	fclose(fp);
+	
+	/*seta todas as mesas como livres (tempo 0)*/
+	for(i = 0; i < 16; i++){
+	    tempo_saida[i] = 0;
+	}
+	
+	/*mostra entrada para o programa. Espera enter para continuar*/
+	printf("Seja bem vindo!\n");
+	printf("Gostaria de começar a gerenciar o restaurante? (s/n)\n");
+        getControl(c);
+}
+/*cabeçalho de sleep porque ela é chamada em checkTables*/
+void sleep(int ms);
+/*cabeçalho de freeTables porque ela é chamada em checkTables */
+void freeTables(int mesa);
+/*verifica se o restaurante está lotado ou descobre a primeira mesa vazia*/
+void checkTables(int* counter){ 
+	 int i;
+	 counter[0] = -1; counter[1] = -1;
+	for(i = 0; i < 16; i++){
+	        
+	         if (tempo_saida[15-i] < clock()){
+			if(i >= 4){
+				counter[0] = 15-i;
+				if(tempo_saida[15-i] != 0){
+					printf("%da mesa do SALAO foi libera\n", 16-i);
+					printf("(aperte enter para recolher sua gorjeta)\n");
+					getchar();
+					freeTables(15-i);
+				}
+			}
+	            else{
+				counter[1] = 15-i;
+				if(tempo_saida[15-i] != 0){
+					printf("%da mesa da VARANDA foi liberada.\n", (4-i));
+					printf("(aperte enter para recolher sua gorjeta)\n");
+					getchar();
+					freeTables(15-i);
+				}
+	            }
+	        }
+	}
+}
+
+/* pede input para o numero de pessoas e verifica se esta dentro do permitido*/
+int getPeople(){
+	int x;
+	printf("Mesa para quantos? (1 ate 4 pessoas)\n");
+	scanf("%d", &x);
+	getchar();
+	while ((x < 1) || (x > 4)){
+		printf("Nossas mesas comportam ate 4 pessoas\n");
+		scanf("%d", &x);
+		getchar();
+	}
+	
+	return x;
+}
+
+/*Pede e verifica a preferência de mesa do cliente.*/
+int getPreference(){
+    int p;
+    printf("Prefere SALAO(1) ou VARANDA(2)?\n");
+    scanf("%d", &p);
+    getchar();
+    while((p != 1) && (p != 2)){
+        printf("Esta opção ainda nao existe, mas estamos trabalhando para melhorar a sua experiencia\n");
+        printf("Por favor, escolha entre SALAO(1) ou VARANDA(2).\n");
+        scanf("%d", &p);
+        getchar();
+    }
+    return p;
+}
+/*função para controlar animação do programa*/
+void sleep(int ms) {
+	clock_t limit = clock() + ms*(CLOCKS_PER_SEC/1000);
+	while (limit > clock()) {}
+}
+
+/*movimenta a party ate sua devida mesa*/
+void animacao(int *vago, int n, int pessoas){
+    /*primeira parte: da porta aos corredores*/
+    int i, j, k, l;
+    system(CLEAR);
+    for(i = 0; i < 11; i++){
+    	
+    	for(j = 0; j < 17; j++)
+	           printf("%s\n", restaurante[j]);
+	    
+	    restaurante[9][35-i] = '0';
+	    if (i > 0)
+	    	restaurante[9][35-i+1] = ' ';
+	    	
+	    sleep(ANIMACAO_DELAY);
+	    system(CLEAR);
+
+    }
+    restaurante[9][25] = ' ';
+    /*segunda parte: ate o corredor certo*/
+    /*corredor da varanda*/
+    if (n == 1){
+    	for(i = 0; i <= 6; i++){
+    		for(j = 0; j < 17; j++)
+	           printf("%s\n", restaurante[j]);
+	        
+	        restaurante[9+i][25] = '0';
+	        
+	        	restaurante[8+i][25] = ' ';
+	        	
+	        sleep(ANIMACAO_DELAY);
+			system(CLEAR);
+    	}
+    	restaurante[8+i][25] = ' ';
+    	k = 15;
+
+    }
+    /*corredor de cima*/
+    else if(vago[n] < 4){
+    	for(i = 0; i <= 6; i++){
+    		for(j = 0; j < 17; j++)
+	           printf("%s\n", restaurante[j]);
+	        
+	        restaurante[9-i][25] = '0';
+	        
+	        	restaurante[10-i][25] = ' ';
+	        	
+	        sleep(ANIMACAO_DELAY);
+	        system(CLEAR);
+    	}
+    	k = 3;
+    }
+    /*ultimo corredor do salao */
+    else if(vago[n] >= 8){
+    	for(i = 0; i <= 2; i++){
+    		for(j = 0; j < 17; j++)
+	           printf("%s\n", restaurante[j]);
+	        
+	        restaurante[9+i][25] = '0';
+	        
+	        	restaurante[8+i][25] = ' ';
+	        	
+	        sleep(ANIMACAO_DELAY);
+	        system(CLEAR);
+    	}
+    	k = 11;
+    }
+    /*corredor do meio do salao*/
+    else{
+    	for(i = 0; i <= 2; i++){
+    		for(j = 0; j < 17; j++)
+	           printf("%s\n", restaurante[j]);
+	        
+	        restaurante[9-i][25] = '0';
+	       
+	        	restaurante[10-i][25] = ' ';
+	        	
+	        sleep(ANIMACAO_DELAY);
+	        system(CLEAR);
+    	}
+    	k = 7;
+    }
+    
+    /*terceira parte: mesa certa*/
+    int mesa = ((2* (vago[n]%4)) + (vago[n]%4));
+    i = 12;
+    
+    
+    while (i >= mesa){
+    	for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+	       
+	    restaurante[k][13+i] = '0';
+	    restaurante[k][14+i] = ' ';
+	    
+	    sleep(ANIMACAO_DELAY);
+	    system(CLEAR);
+	    i--;
+    }
+    i++;
+    l = 13 + i;
+    restaurante[k][l] = ' ';
+    system(CLEAR);
+	    
+    /*colocando as pessoas na mesa*/
+    if(pessoas == 1){ 
+	restaurante[k-2][l] = '*';
+	
+	for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+	       
+    }
+    else if(pessoas == 2){       
+	restaurante[k-2][l] = '*';
+	restaurante[k-2][l+1] = '*';
+	
+	for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+    }
+    else if(pessoas == 3){  
+	restaurante[k-2][l] = '*';
+	restaurante[k-2][l+1] = '*';
+	restaurante[k-1][l] = '*';
+	
+	for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+    }
+    else{
+	restaurante[k-2][l] = '*';
+	restaurante[k-2][l+1] = '*';
+	restaurante[k-1][l] = '*';
+	restaurante[k-1][l+1] = '*';
+	
+	for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+    }
+}
+
+ /* função para mostrar as mesas como liberadas*/
+ void freeTables(int mesa){
+	 tempo_saida[mesa] = 0;
+	 int k, l;
+	 /* encontra a linha k da mesa a ser liberada*/
+	 if(mesa >= 12)
+		 k = 15;
+	 else if(mesa >= 8)
+		 k = 11;
+	 else if(mesa >= 4)
+		 k = 7;
+	 else
+		 k = 3;
+	 
+	 /* encontra a coluna l da mesa a ser liberada*/
+	 mesa = (mesa%4);
+	 if(mesa == 0){
+		 l = 13;
+		 tip += 0.25;
+	 }
+	 else if(mesa == 1){
+		 l = 16;
+		 tip += 0.50;
+	 }
+	 else if(mesa == 2){
+		 l = 19;
+		 tip += 1.0;
+	 }
+	 else {
+		 l = 22;
+		 tip += 2.0;
+	 }
+	 
+	 /* libera a mesa na matriz*/
+	 restaurante[k-2][l] = '/';
+	 restaurante[k-1][l] = '\\';
+	 restaurante[k-2][l+1] = '\\';
+	 restaurante[k-1][l+1] = '/';
+	 
+	 /*atualiza a imagem */
+	 system(CLEAR);
+	 int j;
+	 for(j = 0; j < 17; j++)
+	       printf("%s\n", restaurante[j]);
+ }
+ 
+ /* nossa querida main, onde a magica acontece*/
+int main(){
+    char controle[6];
+    int i, pessoas, preferencia;
+	    int vago[2]; 
+	    vago[0] = 0;
+	    vago[1] = 12;
+	
+	/*inicializa variaveis do programa. Pede primeiro input*/
+	inicio(controle);
+
+	while ((controle[0] != 'n') && (controle[0] != 'N')){
+	    
+	    
+	    /*significa que o restaurante esta lotado*/
+	    if ((vago[0] == -1) && (vago[1] == -1)){
+		printf("O restaurante está atualmente lotado. Verificando mesas...\n");
+		sleep(ANIMACAO_DELAY*10);
+		system(CLEAR);
+	        checkTables(vago);
+	        for (i = 0; i < 17; i++)
+	            printf("%s\n", restaurante[i]);
+	    }
+	    else{
+	        pessoas = getPeople();
+	        preferencia = getPreference();
+	        
+	        /* ve se a preferencia era o SALAO*/
+	        if(preferencia == 1){
+	            /*teste da disponibilidade da preferencia*/
+	            if(vago[0] != -1){
+	                animacao(vago, 0, pessoas);
+	                tempo_saida[vago[0]] = ( (clock()*10) + RAND(MEDIA_TEMPO, ERRO_TEMPO));
+	            }
+	            /* oferece a outra opção caso a escolhida esteja indisponivel*/
+	            else{
+	                printf("O SALAO esta atualmente cheio. Gostaria de ir para a VARANDA? (s/n)\n");
+	                getControl(controle);
+	                
+	                if ((controle[0] == 's') || (controle[0] == 'S')){
+	                    animacao(vago, 1, pessoas);
+	                    tempo_saida[vago[1]] = ((clock()*5) + RAND(MEDIA_TEMPO, ERRO_TEMPO));
+	                }
+	            }
+	        }
+	        /*se a preferencia for a VARANDA*/
+	        else{
+	            if(vago[1] != -1){
+	                animacao(vago, 1, pessoas);
+	                tempo_saida[vago[1]] = ((clock()*5) + RAND(MEDIA_TEMPO, ERRO_TEMPO));
+	            }
+	            /* oferece a outra opção caso a escolhida esteja indisponivel*/
+	            else{
+	                printf("A VARANDA esta atualmente cheio. Gostaria de ir para o SALAO? (s/n)\n");
+	                getControl(controle);
+	               
+	                if ((controle[0] == 's') || (controle[0] == 'S')){
+	                    animacao(vago, 0, pessoas);
+	                    tempo_saida[vago[0]] = ((clock()*10) + RAND(MEDIA_TEMPO, ERRO_TEMPO));
+	                }
+	            }
+	        }
+	        /*vê se alguma mesa foi liberada e atualiza o restaurante*/
+	        checkTables(vago);
+		
+		system(CLEAR);
+	        for(i = 0; i < 17; i++)
+	            printf("%s\n", restaurante[i]);
+	    }
+	    /* prossegue para a proxima iteração do grande loop, ou termina o programa*/
+	    printf("Gostaria de continuar o gerenciamento do restaurante? (s/n)\n");
+	    getControl(controle);
+	    
+	}
+	system(CLEAR);
+	printf("Obrigado pela preferencia, volte sempre!\n");
+	printf("Os ganhos totais da noite foram: %.2lf$\n", tip);
+	
+		return 0;
+}
